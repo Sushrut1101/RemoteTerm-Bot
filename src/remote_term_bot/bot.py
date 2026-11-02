@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from telegram import Update
+from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 from remote_term_bot.access import allowed
 from remote_term_bot.config import Settings
-from remote_term_bot.presentation import session_details
+from remote_term_bot.presentation import inline_code, session_details
 from remote_term_bot.sessions import SessionManager, UptermError
 from remote_term_bot import logger
 
@@ -56,7 +57,7 @@ async def new_session(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.effective_message.reply_text(f"Could not create session: {exc}")
         return
 
-    await update.effective_message.reply_text(session_details(session))
+    await update.effective_message.reply_text(session_details(session), parse_mode=ParseMode.MARKDOWN_V2)
     _log(update, "/new", "Upterm session created")
 
 async def list_sessions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -68,9 +69,10 @@ async def list_sessions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         _log(update, "/list", "No active sessions")
         return
     text = "Active sessions:\n" + "\n".join(
-        f"• {session.session_id} - {session.status}" for session in sessions
+        f"Session: {inline_code(session.session_id)} | Status: {inline_code(session.status)}"
+        for session in sessions
     )
-    await update.effective_message.reply_text(text)
+    await update.effective_message.reply_text(text, parse_mode=ParseMode.MARKDOWN_V2)
     _log(update, "/list", f"Displayed {len(sessions)} active session(s)")
 
 async def show_session(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -81,7 +83,10 @@ async def show_session(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         _log(update, "/show", "Invalid usage")
         return
     session = await _manager(context).get(context.args[0])
-    await update.effective_message.reply_text(session_details(session) if session else "Session not found or no longer active.")
+    if session:
+        await update.effective_message.reply_text(session_details(session), parse_mode=ParseMode.MARKDOWN_V2)
+    else:
+        await update.effective_message.reply_text("Session not found or no longer active.")
     _log(update, f"/show {context.args[0]}", "Displayed session details" if session else "Session not found")
 
 async def kill_session(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
