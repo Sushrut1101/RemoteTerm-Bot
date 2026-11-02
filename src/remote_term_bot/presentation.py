@@ -7,17 +7,27 @@ def inline_code(value: str) -> str:
     return f"`{escaped}`"
 
 def session_details(session: Session) -> str:
-    fields = [("Session", session.session_id), ("Mode", session.mode), ("Status", session.status)]
+    summary = [
+        f"Session: {inline_code(session.session_id)}",
+        f"Mode: {session.mode}",
+        f"Status: {session.status}",
+    ]
+    connections: list[str] = []
 
     if session.ssh_command:
-        fields.append(("SSH", session.ssh_command))
+        connections.append(f"SSH: {inline_code(session.ssh_command)}")
     if session.join_url:
-        fields.append(("Join", session.join_url))
+        connections.append(f"Join: {inline_code(session.join_url)}")
     if session.sftp_command:
-        fields.append(("SFTP", session.sftp_command))
+        connections.append(f"SFTP: {inline_code(session.sftp_command)}")
     if session.scp_command:
         for line in session.scp_command.splitlines():
             label, separator, value = line.partition(":")
-            fields.append((label, value.strip() if separator else line))
+            if separator:
+                connections.append(f"{label}: {inline_code(value.strip())}")
+            else:
+                connections.append(inline_code(line))
 
-    return "\n".join(f"{label}: {inline_code(value)}" for label, value in fields)
+    if not connections:
+        return "\n".join(summary)
+    return "\n".join(summary) + "\n\n" + "\n".join(connections)
