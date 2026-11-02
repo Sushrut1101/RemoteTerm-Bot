@@ -20,4 +20,4 @@ def session_details(session: Session) -> str:
             label, separator, value = line.partition(":")
             fields.append((label, value.strip() if separator else line))
 
-    return "\n".join(f"{label}: {inline_code(value) if label != "Status" else value + "\n"}" for label, value in fields)
+    return "\n".join(f"{label}: {inline_code(value)}" for label, value in fields)

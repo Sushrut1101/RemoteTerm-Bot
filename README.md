@@ -7,7 +7,8 @@ A Telegram bot for creating and managing shared [Upterm](https://upterm.dev/) te
 - Python 3.11 or newer
 - [`uv`](https://docs.astral.sh/uv/)
 - The [Upterm](https://upterm.dev/) CLI installed on the machine running the bot
-- `tmux` installed if you want to use `/new 1`
+- `tmux` installed for `/new 1`
+- Byobu installed for `/new 2` (uses tmux as its backend)
 - A Telegram bot token from [@BotFather](https://t.me/BotFather)
 
 ## Setup
@@ -47,7 +48,7 @@ The IDs shown by `/new` and `/list` are Upterm's own session IDs. The bot keeps 
 | --- | --- |
 | `/start` | Show the welcome message |
 | `/help` | Show commands and usage |
-| `/new [0|1]` | Start a shell session (`0`, default) or tmux session (`1`) |
+| `/new [0|1|2]` | Start a shell session (`0`, default), tmux session (`1`), or Byobu session (`2`) |
 | `/list` | List active sessions created by this bot |
 | `/show <id>` | Show SSH and other connection details |
 | `/kill <id>` | Stop a session |

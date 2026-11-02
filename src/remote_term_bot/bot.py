@@ -16,7 +16,7 @@ HELP_TEXT = (
     "RemoteTerm Bot commands:\n\n"
     "/start - welcome message\n"
     "/help - show this command list\n"
-    "/new [0|1] - create a shell (0, default) or tmux (1) session\n"
+    "/new [0|1|2] - shell (0, default), tmux (1), or Byobu (2)\n"
     "/list - list your active sessions\n"
     "/show <id> - show SSH and session details\n"
     "/kill <id> - stop one session\n"
@@ -44,9 +44,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def new_session(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await allowed(update, context):
         return
-    if len(context.args) > 1 or (context.args and context.args[0] not in {"0", "1"}):
+    if len(context.args) > 1 or (context.args and context.args[0] not in {"0", "1", "2"}):
         await update.effective_message.reply_text(
-            "Usage: /new [0|1]\n0 = shell (default)\n1 = tmux"
+            "Usage: /new [0|1|2]\n0 = shell (default)\n1 = tmux\n2 = Byobu"
         )
         _log(update, "/new", "Invalid usage")
         return
