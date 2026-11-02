@@ -51,8 +51,8 @@ The IDs shown by `/new` and `/list` are Upterm's own session IDs. The bot keeps 
 | `/help` | Show commands and usage |
 | `/new [mode]` | Start a session with the current default, or specify `0` for shell, `1` for tmux, or `2` for Byobu |
 | `/set <mode>` | Set the default for this run: `0` for shell, `1` for tmux, or `2` for Byobu |
-| `/list` | List active sessions created by this bot |
-| `/show <id>` | Show SSH and other connection details |
+| `/list` | List active sessions and their creators |
+| `/show <id>` | Show the creator, SSH, and other connection details |
 | `/kill <id>` | Stop a session |
 | `/killall` | Stop all active sessions created by this bot |
 | `/uptime` | Show how long the bot process has been running |

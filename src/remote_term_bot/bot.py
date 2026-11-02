@@ -8,7 +8,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 
 from remote_term_bot.access import allowed
 from remote_term_bot.config import Settings
-from remote_term_bot.presentation import inline_code, session_details
+from remote_term_bot.presentation import escape_markdown, inline_code, session_details
 from remote_term_bot.sessions import SessionManager, UptermError
 from remote_term_bot import uptime
 from remote_term_bot import logger
@@ -57,7 +57,9 @@ async def new_session(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     try:
         mode = int(context.args[0]) if context.args else context.application.bot_data["default_mode"]
-        session = await _manager(context).create(mode)
+        user = update.effective_user
+        created_by = f"@{user.username}" if user.username else (user.full_name or str(user.id))
+        session = await _manager(context).create(mode, created_by)
     except UptermError as exc:
         logger.error(f"Could not create Upterm session: {exc}")
         await update.effective_message.reply_text(f"Could not create session: {exc}")
@@ -98,7 +100,7 @@ async def list_sessions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         _log(update, "/list", "No active sessions")
         return
     text = "Active sessions:\n" + "\n".join(
-        f"Session: {inline_code(session.session_id)} | Status: {inline_code(session.status)}"
+        f"{inline_code(session.session_id)} \\- by {escape_markdown(session.created_by)}"
         for session in sessions
     )
     await update.effective_message.reply_text(text, parse_mode=ParseMode.MARKDOWN_V2)

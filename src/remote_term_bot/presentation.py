@@ -2,6 +2,12 @@
 
 from remote_term_bot.sessions import Session
 
+
+def escape_markdown(value: str) -> str:
+    special_characters = set(r"_*[]()~`>#+-=|{}.!\\")
+    return "".join(f"\\{character}" if character in special_characters else character for character in value)
+
+
 def inline_code(value: str) -> str:
     escaped = value.replace("\\", "\\\\").replace("`", "\\`")
     return f"`{escaped}`"
@@ -11,6 +17,7 @@ def session_details(session: Session) -> str:
         f"Session: {inline_code(session.session_id)}",
         f"Mode: {session.mode}",
         f"Status: {session.status}",
+        f"Created by: {escape_markdown(session.created_by)}",
     ]
     connections: list[str] = []
 

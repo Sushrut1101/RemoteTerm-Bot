@@ -22,6 +22,7 @@ class Session:
     status: str
     ssh_command: str
     join_url: str
+    created_by: str = ""
     command: str = ""
     force_command: str = ""
     sftp_command: str = ""
@@ -63,7 +64,7 @@ class SessionManager:
             raise UptermError("Upterm did not respond in time.") from exc
         return process.returncode or 0, stdout.decode(errors="replace").strip(), stderr.decode(errors="replace").strip()
 
-    async def create(self, mode: int = 0) -> Session:
+    async def create(self, mode: int = 0, created_by: str = "Unknown") -> Session:
         if mode not in {0, 1, 2}:
             raise ValueError("Session mode must be 0 (shell), 1 (tmux), or 2 (byobu).")
 
@@ -155,7 +156,7 @@ class SessionManager:
                 except json.JSONDecodeError:
                     details = {}
                 if details.get("status") == "ready":
-                    session = self._from_details(session_name, details, mode_name)
+                    session = self._from_details(session_name, details, mode_name, created_by)
                     self._sessions[session.session_id] = session
                     return session
             await asyncio.sleep(1)
@@ -192,7 +193,9 @@ class SessionManager:
             await reader
 
     @staticmethod
-    def _from_details(session_id: str, data: dict[str, Any], mode: str) -> Session:
+    def _from_details(
+        session_id: str, data: dict[str, Any], mode: str, created_by: str
+    ) -> Session:
         ssh_command = str(data.get("sshCommand", ""))
         target = ssh_command.removeprefix("ssh ").strip() if ssh_command.startswith("ssh ") else ""
         upstream_id = str(data.get("sessionId") or (target.split("@", 1)[0] if "@" in target else session_id))
@@ -214,6 +217,7 @@ class SessionManager:
             status=str(data.get("status", "ready")),
             ssh_command=ssh_command,
             join_url=join_command,
+            created_by=created_by,
             command=str(data.get("command", "")),
             force_command=str(data.get("forceCommand", "")),
             sftp_command=str(data.get("sftpCommand") or (f"sftp {target}" if target else "")),
@@ -238,7 +242,7 @@ class SessionManager:
         except json.JSONDecodeError:
             self._sessions.pop(session_id, None)
             return None
-        session = self._from_details(previous.name, data, previous.mode)
+        session = self._from_details(previous.name, data, previous.mode, previous.created_by)
         if session.status in {"ended", "stopped", "failed", "startup_failed"}:
             self._sessions.pop(session_id, None)
             return None
