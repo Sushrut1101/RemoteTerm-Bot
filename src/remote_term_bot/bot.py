@@ -16,7 +16,7 @@ HELP_TEXT = (
     "RemoteTerm Bot commands:\n\n"
     "/start - welcome message\n"
     "/help - show this command list\n"
-    "/new - create an Upterm session\n"
+    "/new [0|1] - create a shell (0, default) or tmux (1) session\n"
     "/list - list your active sessions\n"
     "/show <id> - show SSH and session details\n"
     "/kill <id> - stop one session\n"
@@ -44,14 +44,17 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def new_session(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await allowed(update, context):
         return
-    if context.args:
-        await update.effective_message.reply_text("Usage: /new")
+    if len(context.args) > 1 or (context.args and context.args[0] not in {"0", "1"}):
+        await update.effective_message.reply_text(
+            "Usage: /new [0|1]\n0 = shell (default)\n1 = tmux"
+        )
         _log(update, "/new", "Invalid usage")
         return
     await update.effective_message.reply_text("Starting an Upterm session…")
 
     try:
-        session = await _manager(context).create()
+        mode = int(context.args[0]) if context.args else 0
+        session = await _manager(context).create(mode)
     except UptermError as exc:
         logger.error(f"Could not create Upterm session: {exc}")
         await update.effective_message.reply_text(f"Could not create session: {exc}")

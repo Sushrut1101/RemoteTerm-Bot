@@ -6,6 +6,7 @@ import asyncio
 import json
 import os
 import secrets
+import shlex
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -17,6 +18,7 @@ class UptermError(RuntimeError):
 class Session:
     session_id: str
     name: str
+    mode: str
     status: str
     ssh_command: str
     join_url: str
@@ -34,15 +36,20 @@ class SessionManager:
         self._output_readers: dict[str, asyncio.Task[None]] = {}
 
     async def _run(self, *arguments: str, timeout: float = 45) -> tuple[int, str, str]:
+        return await self._run_program(self.binary, *arguments, timeout=timeout)
+
+    async def _run_program(
+        self, executable: str, *arguments: str, timeout: float = 45
+    ) -> tuple[int, str, str]:
         try:
             process = await asyncio.create_subprocess_exec(
-                self.binary,
+                executable,
                 *arguments,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
         except FileNotFoundError as exc:
-            raise UptermError(f"Upterm executable not found: {self.binary}") from exc
+            raise UptermError(f"Executable not found: {executable}") from exc
         try:
             stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
         except TimeoutError as exc:
@@ -51,25 +58,50 @@ class SessionManager:
             raise UptermError("Upterm did not respond in time.") from exc
         return process.returncode or 0, stdout.decode(errors="replace").strip(), stderr.decode(errors="replace").strip()
 
-    async def create(self) -> Session:
+    async def create(self, mode: int = 0) -> Session:
+        if mode not in {0, 1}:
+            raise ValueError("Session mode must be 0 (shell) or 1 (tmux).")
+
         session_name = f"remote-term-{secrets.token_hex(4)}"
+        shell = os.getenv("SHELL") or "/bin/sh"
+        mode_name = "tmux" if mode == 1 else "shell"
+
+        if mode == 1:
+            shell_loop = f"while :; do {shlex.quote(shell)}; done"
+            try:
+                code, output, error = await self._run_program(
+                    "tmux", "new-session", "-d", "-s", session_name, shell_loop
+                )
+            except UptermError as exc:
+                raise UptermError("tmux mode requires tmux to be installed and available in PATH.") from exc
+            if code:
+                raise UptermError(error or output or "Could not start the tmux session.")
 
         try:
-            process = await asyncio.create_subprocess_exec(
-                self.binary,
+            arguments = [
                 "host",
                 "--accept",
                 "--skip-host-key-check",
                 "--name",
                 session_name,
-                "--",
-                os.getenv("SHELL") or "/bin/sh",
+            ]
+            if mode == 1:
+                arguments.extend(("--force-command", f"tmux attach-session -t ={session_name}"))
+                arguments.extend(("--", "tmux", "new-session", "-A", "-s", session_name))
+            else:
+                arguments.extend(("--", shell))
+
+            process = await asyncio.create_subprocess_exec(
+                self.binary,
+                *arguments,
                 stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
                 start_new_session=True,
             )
         except FileNotFoundError as exc:
+            if mode == 1:
+                await self._run_program("tmux", "kill-session", "-t", f"={session_name}")
             raise UptermError(f"Upterm executable not found: {self.binary}") from exc
 
         self._host_processes[session_name] = process
@@ -87,7 +119,7 @@ class SessionManager:
                 except json.JSONDecodeError:
                     details = {}
                 if details.get("status") == "ready":
-                    session = self._from_details(session_name, details)
+                    session = self._from_details(session_name, details, mode_name)
                     self._sessions[session.session_id] = session
                     return session
             await asyncio.sleep(1)
@@ -96,6 +128,8 @@ class SessionManager:
         await process.wait()
         await self._forget_process(session_name)
         log_output = bytes(self._process_output.pop(session_name, bytearray())).decode(errors="replace")[-3000:]
+        if mode == 1:
+            await self._run_program("tmux", "kill-session", "-t", f"={session_name}")
 
         raise UptermError(log_output.strip() or "Upterm exited before the session became ready.")
 
@@ -115,7 +149,7 @@ class SessionManager:
             await reader
 
     @staticmethod
-    def _from_details(session_id: str, data: dict[str, Any]) -> Session:
+    def _from_details(session_id: str, data: dict[str, Any], mode: str) -> Session:
         ssh_command = str(data.get("sshCommand", ""))
         target = ssh_command.removeprefix("ssh ").strip() if ssh_command.startswith("ssh ") else ""
         upstream_id = str(data.get("sessionId") or (target.split("@", 1)[0] if "@" in target else session_id))
@@ -133,6 +167,7 @@ class SessionManager:
         return Session(
             session_id=upstream_id,
             name=session_name,
+            mode=mode,
             status=str(data.get("status", "ready")),
             ssh_command=ssh_command,
             join_url=join_command,
@@ -160,7 +195,7 @@ class SessionManager:
         except json.JSONDecodeError:
             self._sessions.pop(session_id, None)
             return None
-        session = self._from_details(previous.name, data)
+        session = self._from_details(previous.name, data, previous.mode)
         if session.status in {"ended", "stopped", "failed", "startup_failed"}:
             self._sessions.pop(session_id, None)
             return None
@@ -195,6 +230,8 @@ class SessionManager:
                 await host_process.wait()
         await self._forget_process(session.name)
         self._process_output.pop(session.name, None)
+        if session.mode == "tmux":
+            await self._run_program("tmux", "kill-session", "-t", f"={session.name}")
         self._sessions.pop(session_id, None)
         return True
 

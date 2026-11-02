@@ -7,7 +7,7 @@ def inline_code(value: str) -> str:
     return f"`{escaped}`"
 
 def session_details(session: Session) -> str:
-    fields = [("Session", session.session_id), ("Status", session.status)]
+    fields = [("Session", session.session_id), ("Mode", session.mode), ("Status", session.status)]
 
     if session.ssh_command:
         fields.append(("SSH", session.ssh_command))
