@@ -55,6 +55,7 @@ The IDs shown by `/new` and `/list` are Upterm's own session IDs. The bot keeps 
 | `/show <id>` | Show SSH and other connection details |
 | `/kill <id>` | Stop a session |
 | `/killall` | Stop all active sessions created by this bot |
+| `/uptime` | Show how long the bot process has been running |
 
 ## Project layout
 
@@ -65,5 +66,6 @@ src/remote_term_bot/
 ├── config.py       # Environment-based settings
 ├── presentation.py # Telegram formatting for session details
 ├── sessions.py     # Upterm CLI integration and in-memory session tracking
+├── uptime.py       # Process uptime formatting
 └── __main__.py     # Application entry point
 ```

@@ -10,6 +10,7 @@ from remote_term_bot.access import allowed
 from remote_term_bot.config import Settings
 from remote_term_bot.presentation import inline_code, session_details
 from remote_term_bot.sessions import SessionManager, UptermError
+from remote_term_bot import uptime
 from remote_term_bot import logger
 
 HELP_TEXT = (
@@ -21,7 +22,8 @@ HELP_TEXT = (
     "/list - list your active sessions\n"
     "/show <id> - show SSH and session details\n"
     "/kill <id> - stop one session\n"
-    "/killall - stop all active sessions"
+    "/killall - stop all active sessions\n"
+    "/uptime - show the bot's uptime"
 )
 
 def _manager(context: ContextTypes.DEFAULT_TYPE) -> SessionManager:
@@ -79,6 +81,13 @@ async def set_default_mode(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         f"Default session mode set to {mode_name} ({mode}). This setting lasts until the bot restarts."
     )
     _log(update, "/set", f"Default mode set to {mode_name} ({mode})")
+
+async def show_uptime(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await allowed(update, context):
+        return
+    message = f"⏱ Uptime: {inline_code(uptime.get_uptime())}"
+    await update.effective_message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2)
+    _log(update, "/uptime", "Uptime displayed")
 
 async def list_sessions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await allowed(update, context):
@@ -152,6 +161,7 @@ def create_application(settings: Settings) -> Application:
         ("help", help_command),
         ("new", new_session),
         ("set", set_default_mode),
+        ("uptime", show_uptime),
         ("list", list_sessions),
         ("show", show_session),
         ("kill", kill_session),
