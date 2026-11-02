@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 class Settings:
     bot_token: str
     authorized_users: frozenset[int]
+    default_mode: int
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -30,7 +31,16 @@ class Settings:
         if not users:
             raise ValueError("AUTHORIZED_USERS must contain at least one Telegram user ID.")
 
+        raw_mode = os.getenv("DEFAULT_MODE", "0").strip() or "0"
+        try:
+            default_mode = int(raw_mode)
+        except ValueError as exc:
+            raise ValueError("DEFAULT_MODE must be 0 (shell), 1 (tmux), or 2 (Byobu).") from exc
+        if default_mode not in {0, 1, 2}:
+            raise ValueError("DEFAULT_MODE must be 0 (shell), 1 (tmux), or 2 (Byobu).")
+
         return cls(
             bot_token=token,
             authorized_users=users,
+            default_mode=default_mode,
         )

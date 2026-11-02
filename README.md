@@ -23,8 +23,9 @@ Create `.env` in the directory you launch the bot from, and set `BOT_TOKEN` and 
 ```dotenv
 BOT_TOKEN=your-telegram-bot-token
 AUTHORIZED_USERS=123456789
+DEFAULT_MODE=0
 ```
-Or, you can set `BOT_TOKEN` and `AUTHORIZED_USERS` env variables in your shell and export them before running the bot.
+`DEFAULT_MODE` is optional: `0` selects a shell, `1` selects tmux, and `2` selects Byobu. It defaults to `0` when omitted. `/set <0|1|2>` changes the default for the current bot run; after restart, the value from `.env` is used again. `/new <0|1|2>` overrides the default for one session. You can also set `BOT_TOKEN`, `AUTHORIZED_USERS`, and `DEFAULT_MODE` in the shell environment before running the bot.
 
 ## Run
 
@@ -48,7 +49,8 @@ The IDs shown by `/new` and `/list` are Upterm's own session IDs. The bot keeps 
 | --- | --- |
 | `/start` | Show the welcome message |
 | `/help` | Show commands and usage |
-| `/new [0|1|2]` | Start a shell session (`0`, default), tmux session (`1`), or Byobu session (`2`) |
+| `/new [mode]` | Start a session with the current default, or specify `0` for shell, `1` for tmux, or `2` for Byobu |
+| `/set <mode>` | Set the default for this run: `0` for shell, `1` for tmux, or `2` for Byobu |
 | `/list` | List active sessions created by this bot |
 | `/show <id>` | Show SSH and other connection details |
 | `/kill <id>` | Stop a session |
