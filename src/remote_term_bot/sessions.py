@@ -139,9 +139,11 @@ class SessionManager:
             command=str(data.get("command", "")),
             force_command=str(data.get("forceCommand", "")),
             sftp_command=str(data.get("sftpCommand") or (f"sftp {target}" if target else "")),
-            scp_command=str(
-                data.get("scpCommand")
-                or (f"scp <local> {target}:<remote>  |  scp {target}:<remote> <local>" if target else "")
+            scp_command=(
+                f"SCP to: scp <local> {target}:<remote>\n"
+                f"SCP from: scp {target}:<remote> <local>"
+                if target
+                else str(data.get("scpCommand", ""))
             ),
         )
 

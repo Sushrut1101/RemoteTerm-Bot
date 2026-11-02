@@ -12,6 +12,6 @@ def session_details(session: Session) -> str:
     if session.sftp_command:
         lines.append(f"SFTP: {session.sftp_command}")
     if session.scp_command:
-        lines.append(f"SCP: {session.scp_command}")
+        lines.extend(session.scp_command.splitlines())
 
     return "\n".join(lines)
