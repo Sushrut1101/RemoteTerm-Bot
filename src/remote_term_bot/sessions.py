@@ -71,13 +71,17 @@ class SessionManager:
         session_name = f"remote-term-{secrets.token_hex(4)}"
         shell = os.getenv("SHELL") or "/bin/sh"
         mode_name = {0: "shell", 1: "tmux", 2: "byobu"}[mode]
-        byobu_env = os.environ.copy()
-        byobu_env["BYOBU_BACKEND"] = "tmux"
+        session_env = os.environ.copy()
+        # Upterm and the multiplexers may otherwise choose their own fallback
+        # shell (commonly /bin/sh), even when the bot was started from zsh.
+        session_env["SHELL"] = shell
+        if mode == 2:
+            session_env["BYOBU_BACKEND"] = "tmux"
 
         if mode in {1, 2}:
-            shell_loop = f"while :; do {shlex.quote(shell)}; done"
+            shell_loop = f"while :; do {shlex.quote(shell)} -i; done"
             multiplexer = "tmux" if mode == 1 else "byobu"
-            command_env = byobu_env if mode == 2 else None
+            command_env = session_env
             try:
                 if mode == 2:
                     code, _, _ = await self._run_program(
@@ -118,7 +122,7 @@ class SessionManager:
                 arguments.extend(("--force-command", f"{multiplexer} attach-session -t ={session_name}"))
                 arguments.extend(("--", multiplexer, "new-session", "-A", "-s", session_name))
             else:
-                arguments.extend(("--", shell))
+                arguments.extend(("--", shell, "-i"))
 
             process = await asyncio.create_subprocess_exec(
                 self.binary,
@@ -127,7 +131,7 @@ class SessionManager:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
                 start_new_session=True,
-                env=byobu_env if mode == 2 else None,
+                env=session_env,
             )
         except FileNotFoundError as exc:
             if mode in {1, 2}:
@@ -137,7 +141,7 @@ class SessionManager:
                     "kill-session",
                     "-t",
                     f"={session_name}",
-                    env=byobu_env if mode == 2 else None,
+                    env=session_env,
                 )
             raise UptermError(f"Upterm executable not found: {self.binary}") from exc
 
@@ -172,7 +176,7 @@ class SessionManager:
                 "kill-session",
                 "-t",
                 f"={session_name}",
-                env=byobu_env if mode == 2 else None,
+                env=session_env,
             )
 
         raise UptermError(log_output.strip() or "Upterm exited before the session became ready.")
@@ -279,8 +283,8 @@ class SessionManager:
         self._process_output.pop(session.name, None)
         if session.mode in {"tmux", "byobu"}:
             multiplexer = session.mode
-            env = os.environ.copy() if multiplexer == "byobu" else None
-            if env is not None:
+            env = os.environ.copy()
+            if multiplexer == "byobu":
                 env["BYOBU_BACKEND"] = "tmux"
             await self._run_program(multiplexer, "kill-session", "-t", f"={session.name}", env=env)
         self._sessions.pop(session_id, None)
